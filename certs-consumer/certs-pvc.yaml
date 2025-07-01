@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: certifcates-pvc
+  namespace: my-app-namespace  #modify according to the app's namespace
+spec:
+  storageClassName: rook-ceph-fs #name of your storageclass (using ceph) 
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi

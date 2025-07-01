@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: generate-cert-global
+  namespace: cert-manager
+spec:
+  schedule: "0 0 31 2 *"  
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 30 
+      template:
+        spec:
+          nodeSelector:
+            node-role.kubernetes.io/worker: "true"
+          containers:
+          - name: generate-cert-global 
+            image: ubuntu:noble 
+            securityContext:
+              runAsUser: 0
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              apt update && apt install -y openssl curl zip
+              declare -A fqdns
+              fqdns=(
+                  [1]='my-app')
+              rm -rf /certs/certificates.zip
+              for fqdn in "${fqdns[@]}"; do rm -rf /certs/$fqdn/; done
+              for fqdn in "${fqdns[@]}"; do
+                mkdir -p /tmp/certs_generation/$fqdn
+                echo "Generate certificates for: $fqdn"
+                openssl genrsa -out /tmp/certs_generation/$fqdn/$fqdn.key 2048
+                
+                echo "Creating CSR (Certificate Signing Request)"
+                openssl req -new -key /tmp/certs_generation/$fqdn/$fqdn.key \
+                  -subj "/CN=$fqdn.domain.com" -out /tmp/certs_generation/$fqdn/$fqdn.csr
+                    
+                echo "subjectAltName=DNS:$fqdn.domain.com" > /tmp/certs_generation/$fqdn/$fqdn.ext
+                    
+                echo "Sign certificate with CA"
+                openssl x509 -req -in /tmp/certs_generation/$fqdn/$fqdn.csr \
+                  -CA /certs/ca/ca.crt -CAkey /certs/ca/ca.key -passin pass:Password \
+                  -CAcreateserial -out /tmp/certs_generation/$fqdn/$fqdn.crt \
+                  -days 3650 -sha256 -extfile /tmp/certs_generation/$fqdn/$fqdn.ext
+                cd /tmp/certs_generation && zip -r /certs/certificates.zip $fqdn
+                unzip /certs/certificates.zip -d /certs
+                rm -rf /tmp/certs_generation
+              done
+              ls -la /certs
+            volumeMounts:
+            - name: certs
+              mountPath: /certs
+          restartPolicy: Never                          
+          volumes:
+          - name: certs
+            persistentVolumeClaim:
+              claimName: shared-certificates-pvc
+      backoffLimit: 1

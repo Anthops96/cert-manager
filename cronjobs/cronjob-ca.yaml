@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: generate-ca
+  namespace: cert-manager
+spec:
+  schedule: "0 0 31 2 *"  #Not schedule
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 30 
+      template:
+        spec:
+          nodeSelector:
+            node-role.kubernetes.io/worker: "true"
+          containers:
+          - name: elastic-ca-generator
+            image: elasticsearch/elasticsearch:8.17.0 #Generate ca certs using elastic image
+            securityContext:
+              runAsUser: 0
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              rm -rf /certs/ca*
+              echo "Generating CA..."
+              bin/elasticsearch-certutil ca --ca-dn "CN=SERV Root CA,OU=TET,O=COMP,L=Havana,ST=Havana,C=CU" --days 3650 --pem -out /certs/ca.zip --pass "Password" 
+              unzip /certs/ca.zip -d /certs
+              ls -la /certs
+            volumeMounts:
+            - name: certs
+              mountPath: /certs
+          restartPolicy: Never
+          volumes:
+          - name: certs
+            persistentVolumeClaim:
+              claimName:  shared-certificates-pvc
+      backoffLimit: 1
