@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: my-app-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers: 
+      - name: cert-downloader #container responsible for downloading certificates from the server
+        image: curlimages/curl:8.2.1 
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /shared-certs
+          echo "Start downloading the CRT file" 
+          curl -k -sSf --retry 3 \
+            "https://cert-service.cert-manager.svc.cluster.local/certs/my-app/my-app.crt" \
+            -o /shared-certs/tls.crt
+          sleep 5
+          echo "CRT file download complete"
+          echo "Start downloading the KEY file"
+          curl -k -sSf --retry 3 \
+            "https://cert-service.cert-manager.svc.cluster.local/certs/my-app/my-app.key" \
+            -o /shared-certs/tls.key
+          sleep 5
+          echo "KEY file download complete"
+        volumeMounts:
+        - name: shared-certs
+          mountPath: /shared-certs
+      containers:
+      - name: my-app #application that will consume the certificates
+        image: my-app:image
+        volumeMounts:
+        - name: shared-certs
+          mountPath: /path/of/certs
+        ports:
+        - containerPort: 8443
+      volumes:
+      - name: shared-certs
+        persistentVolumeClaim:
+          claimName: certificates-pvc
