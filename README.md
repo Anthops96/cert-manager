@@ -1,5 +1,5 @@
 # cert-manager
-Creating and storing SSL certificates for applications deployed within a Kubernetes cluster. Within our cluster, we can deploy different applications, which in many cases we isolate in namespaces, in order to achieve better organization and security for our projects. Many of these applications rely on SSL certificates to load their configurations and create their secrets, so through this method, we seek to automate the creation of these certificates, in addition to sharing storage regardless of whether the applications are in other namespaces.
+Creating and storing SSL certificates for applications deployed within a Kubernetes cluster. Within our cluster, we can deploy different applications, which in many cases we isolate in namespaces, in order to achieve better organization and security for our projects. Many of these applications rely on SSL certificates to load their configurations and create their secrets, so through this method, we seek to automate the creation of these certificates, as well as make them accessible regardless of whether the applications are in other namespaces.
 
 ##  Creation and storage of the certs
 First of all, we create the namespace where all the resources responsible for managing the certificates will be deployed. Our first resource to deploy will be the volume where the certificates will be created and stored.
